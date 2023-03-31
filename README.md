@@ -1,4 +1,4 @@
-# Ribbon Interview Vue
+# Lexie Interview Vue
 
 This repository has been created to simulate completing similar tasks done in the past. 
 You should implement features using the vuetify library. 
