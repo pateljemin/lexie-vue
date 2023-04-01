@@ -78,25 +78,39 @@
               </v-col>
               <v-sheet width="400" class="mx-auto">
                 <v-form
+                  ref="form"
                   v-model="valid"
                   validate-on="submit"
-                  @submit.prevent="submit"
+                  @submit.prevent="sendMessage"
                 >
+                <v-text-field
+                    v-model="selectedEmail"
+                    :rules="emailRules"
+                    label="Email"
+                    outlined
+                    clearable
+                    @change="updateSelectedDonor"
+                  >
+                  <template #prepend-inner>
+                  <v-icon color="grey lighten-1">mdi-account-search</v-icon>
+                </template>
+              </v-text-field>
                   <v-textarea
                     v-model="message"
                     :rules="messageRules"
                     label="Message"
+                    outlined
+                    counter
                   ></v-textarea>
+                 
                   <v-text-field
-                    v-model="email"
-                    :rules="emailRules"
-                    label="Email"
-                  ></v-text-field>
-                  <v-text-field
-                    v-model="donor_id"
+                    v-model="selectedDonorId"
                     label="Donor Id"
+                    outlined
+                    counter
+                    disabled
                   ></v-text-field>
-                  <v-btn type="submit" block class="mt-2">Send</v-btn>
+                  <v-btn type="submit" :disabled="!valid" color="primary">Send Message</v-btn>
                 </v-form>
               </v-sheet>
             </v-row>
@@ -124,24 +138,22 @@ export default {
 
   data() {
     return {
-      donors: null,
+      donors: [],
       valid: false,
       email: "",
       donor_id: "",
       message: "",
+      selectedDonorId: null,
+      selectedEmail: "",
       emailRules: [
-        (value) => {
-          if (value) return true;
-
-          return "E-mail is required.";
-        },
+        (v) => !!v || "Email is required",
+        (v) =>
+          /.+@.+\..+/.test(v) || "Email must be valid", 
       ],
       messageRules: [
-        (value) => {
-          if (value) return true;
-
-          return "Message is required.";
-        },
+        (v) => !!v || "Message is required",
+        (v) =>
+          v && v.length >= 15 || "Message must be at least 15 characters",
       ],
     };
   },
@@ -151,6 +163,46 @@ export default {
       .then((response) => (this.donors = response.data));
   },
   methods: {
+    updateSelectedDonor() {
+      if (this.selectedEmail) {
+        const donor = this.donors.data.find(
+          (donor) => donor.email === this.selectedEmail
+        );
+        if (donor) {
+          this.selectedDonorId = donor.id;
+        }
+      }
+    },
+    sendMessage() {
+      if(!this.selectedDonorId){
+        alert("Email is not belong to any donor");
+        return;
+      }
+      axios
+        .post(
+          `https://interview.ribbon.giving/api/donors/${this.selectedDonorId}/send-message`,
+          {
+            message: this.message,
+          },
+          {
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+          }
+        )
+        .then(() => {
+          this.$refs.form.reset();
+          this.selectedDonorId = null;
+          this.selectedEmail = "";
+          this.message = "";
+          alert('Message sent successfully!');
+        })
+        .catch((error) => {
+        alert('An error occurred while sending the message.');
+          console.error(error);
+        });
+    },
     async submit() {
       // Send message to server.
     },
