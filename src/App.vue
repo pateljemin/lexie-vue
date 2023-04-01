@@ -24,45 +24,69 @@
           </v-container>
         </v-sheet>
       </section>
-
-      <v-sheet>
-        <section id="filter">
-          <v-container>
-            <v-row justify="space-between">
-              <v-col cols="auto">
-                <h2 class="text-h4">Ribbon Donor List</h2>
-
-                <p class="text-primary mt-3">In Beta now!</p>
-
-                <p class="mt-3">See all those that have given in one place!</p>
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col>
-                <table v-if="donors">
-                  <thead>
-                    <tr>
-                      <th class="text-left">Name</th>
-                      <th class="text-left">Email</th>
-                      <th class="text-left">Total Donations</th>
-                      <th class="text-left">First Donation</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="item in donors.data" :key="item.id">
-                      <td>{{ item.full_name }}</td>
-                      <td>{{ item.email }}</td>
-                      <td>{{ item.total_donations }}</td>
-                      <td>{{ item.first_donation }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </v-col>
-            </v-row>
-          </v-container>
-        </section>
-      </v-sheet>
-
+    <v-sheet>
+    <section id="filter">
+      <v-container>
+        <v-row justify="space-between">
+          <v-col cols="auto">
+            <h2 class="text-h4">Ribbon Donor List</h2>
+            <p class="text-primary mt-3">In Beta now!</p>
+            <p class="mt-3">See all those that have given in one place!</p>
+          </v-col>
+          <v-col cols="auto">
+            <v-text-field
+              v-model="search"
+              label="Search"
+              append-icon="mdi-magnify"
+              single-line
+            ></v-text-field>
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col>
+            <v-data-table
+              :headers="headers"
+              :items="filteredDonors"
+              :loading="loading"
+              :sort-by.sync="sortBy"
+              :sort-desc.sync="sortDesc"
+              :items-per-page="5"
+              class="custom-table"
+            >
+            <v-progress-linear v-show="progressBar" slot="progress" color="#00754A" indeterminate></v-progress-linear>
+              <template v-slot:item.name="{ item }">
+                <v-avatar class="mr-2" size="36">
+                  <v-icon>mdi-account-circle</v-icon>
+                </v-avatar>
+                <span>{{ item.full_name }}</span>
+              </template>
+              <template v-slot:item.first_donation="{ item }">
+                {{ item.first_donation }}
+              </template>
+              <template v-slot:no-data>
+                <v-alert :value="true" color="error" icon="mdi-alert-circle-outline">
+                  No data available
+                </v-alert>
+              </template>
+              <template>
+                <v-row>
+                  <v-col v-if="donors && donors.meta" cols="12">
+                    <v-pagination
+                      v-model="page"
+                      :length="donors.meta.last_page"
+                      :total-visible="9"
+                      :disabled="loading"
+                      color="ribbon"
+                    ></v-pagination>
+                  </v-col>
+                </v-row>
+              </template>
+            </v-data-table>
+          </v-col>
+        </v-row>
+      </v-container>
+    </section>
+  </v-sheet>
       <v-sheet class="py-16" color="#1818181a">
         <section id="grid">
           <v-container>
@@ -124,7 +148,39 @@ export default {
 
   data() {
     return {
-      donors: null,
+      donors: [],
+      progressBar: true,
+      loading: true,
+      sortBy: "full_name",
+      sortDesc: false,
+      search: "",
+      page: 1,
+      headers: [
+        {
+          text: "Name",
+          align: "left",
+          sortable: true,
+          value: "full_name",
+        },
+        {
+          text: "Email",
+          align: "left",
+          sortable: true,
+          value: "email",
+        },
+        {
+          text: "Total Donations",
+          align: "left",
+          sortable: true,
+          value: "total_donations",
+        },
+        {
+          text: "First Donation",
+          align: "left",
+          sortable: true,
+          value: "first_donation",
+        },
+      ],
       valid: false,
       email: "",
       donor_id: "",
@@ -143,12 +199,31 @@ export default {
           return "Message is required.";
         },
       ],
+      watch: {
+        donors() {
+          this.progressBar = false
+        }    
+      }
     };
   },
+  computed: {
+    filteredDonors() {
+      if (this.donors) {
+        return this.donors.filter((donor) =>
+          donor.full_name.toLowerCase().includes(this.search.toLowerCase()) || donor.email.toLowerCase().includes(this.search.toLowerCase())
+        );
+      }
+      return [];
+    },
+  },
   mounted() {
+    this.loading = true;
     axios
       .get("https://interview.ribbon.giving/api/donors")
-      .then((response) => (this.donors = response.data));
+      .then((response) => {
+        this.donors = response.data.data;
+        this.loading = false;
+      });
   },
   methods: {
     async submit() {
@@ -157,3 +232,19 @@ export default {
   },
 };
 </script>
+
+<style>
+.custom-table {
+  font-size: 16px;
+  color: #3A3A40;
+}
+
+.custom-table th {
+  background-color: rgba(58, 58, 64, 0.05);
+}
+
+.custom-table tbody tr:hover {
+  background-color: rgba(58, 58, 64, 0.03);
+}
+
+</style>
